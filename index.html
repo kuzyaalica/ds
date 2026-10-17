@@ -7,6 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Discord Archive Reader</title>
+  <!-- Подключение манифеста для PWA на GitHub Pages -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -15,15 +18,14 @@
       --bg-base: #111216;
       --bg-surface: #1b1c22;
       --bg-elevated: #25262e;
-      --bg-hover: rgba(255, 255, 255, 0.04);
+      --bg-hover: rgba(255, 255, 255, 0.035);
       --primary: #b8c4ff;
       --primary-container: #2e3c7e;
       --on-primary-container: #dde1ff;
       --text-main: #e3e2e6;
       --text-muted: #90909a;
-      --border: #2c2d37;
+      --border: #282933;
       --accent-green: #85d68c;
-      --accent-red: #ffb4ab;
       --radius-lg: 20px;
       --radius-md: 14px;
       --radius-sm: 8px;
@@ -44,19 +46,67 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
+    }
+
+    /* Плавающая кнопка скрытия/показа всего UI слева сверху */
+    .ui-toggle-fab {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: rgba(37, 38, 46, 0.88);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 100;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+      transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .ui-toggle-fab:hover {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      border-color: var(--primary);
+    }
+
+    .ui-toggle-fab:active {
+      transform: scale(0.92);
+    }
+
+    .ui-toggle-fab svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
     }
 
     /* Шапка приложения */
     .app-header {
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border);
-      padding: 10px 16px;
+      padding: 10px 16px 10px 64px; /* Отступ слева под плавающую кнопку */
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      z-index: 20;
+      z-index: 30;
       flex-shrink: 0;
+      transition: transform 0.25s ease, opacity 0.2s ease;
+    }
+
+    /* Состояние когда UI скрыт */
+    body.ui-hidden .app-header {
+      display: none !important;
+    }
+
+    body.ui-hidden .floating-bar {
+      display: none !important;
     }
 
     .channel-info {
@@ -169,12 +219,12 @@
     /* Полоса загрузки файла */
     .progress-bar-wrap {
       background: var(--bg-surface);
-      padding: 10px 16px;
+      padding: 10px 16px 10px 64px;
       border-bottom: 1px solid var(--border);
       display: none;
       flex-direction: column;
       gap: 6px;
-      z-index: 15;
+      z-index: 25;
     }
 
     .progress-bar-wrap.active {
@@ -274,7 +324,7 @@
       overflow-y: auto;
       overflow-x: hidden;
       scroll-behavior: auto;
-      padding: 12px 0;
+      padding: 8px 0;
       display: none;
     }
 
@@ -287,14 +337,15 @@
       pointer-events: none;
     }
 
-    /* Карточка сообщения */
+    /* Карточка сообщения с разделительной полоской */
     .msg-item {
-      padding: 10px 18px;
+      padding: 12px 18px;
       display: flex;
-      gap: 14px;
+      flex-direction: column;
       position: relative;
       transition: background 0.1s;
       border-left: 3px solid transparent;
+      border-bottom: 1px solid var(--border); /* Полосочка между сообщениями */
     }
 
     .msg-item:hover {
@@ -303,7 +354,35 @@
 
     .msg-item.bookmark-highlight {
       border-left-color: var(--primary);
-      background: rgba(184, 196, 255, 0.05);
+      background: rgba(184, 196, 255, 0.04);
+    }
+
+    /* Блок ответа (теперь НАД строкой с аватаркой и ником) */
+    .msg-reply {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      padding-left: 54px; /* Выравнивание по тексту над ником */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .msg-reply::before {
+      content: "╭─ ↱";
+      color: var(--primary);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    /* Основной ряд: аватарка начинается строго на уровне ника */
+    .msg-main-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
     }
 
     .msg-avatar-wrap {
@@ -333,40 +412,23 @@
       min-width: 0;
     }
 
-    .msg-reply {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .msg-reply::before {
-      content: "↱";
-      color: var(--primary);
-      font-weight: bold;
-    }
-
     .msg-header {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       flex-wrap: wrap;
       gap: 8px;
       margin-bottom: 4px;
+      min-height: 28px;
     }
 
     .msg-author {
       font-weight: 600;
-      font-size: 14px;
+      font-size: 14.5px;
       color: var(--text-main);
     }
 
     .msg-date {
-      font-size: 11px;
+      font-size: 11.5px;
       color: var(--text-muted);
     }
 
@@ -377,31 +439,44 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
-    .msg-actions {
-      margin-left: auto;
-      display: flex;
-      gap: 6px;
-    }
-
-    .action-chip {
+    /* Круглая кнопка переводчика возле ника и даты */
+    .translate-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
       background: var(--bg-elevated);
       border: 1px solid var(--border);
       color: var(--text-muted);
-      font-size: 11px;
-      padding: 3px 9px;
-      border-radius: 999px;
-      cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      transition: all 0.15s;
-      font-family: inherit;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+      padding: 0;
     }
 
-    .action-chip:hover {
-      color: var(--text-main);
-      border-color: var(--primary);
+    .translate-btn:hover {
+      color: var(--on-primary-container);
       background: var(--primary-container);
+      border-color: var(--primary);
+    }
+
+    .translate-btn.active {
+      color: var(--on-primary-container);
+      background: var(--primary-container);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(184, 196, 255, 0.2);
+    }
+
+    .translate-btn:active {
+      transform: scale(0.9);
+    }
+
+    .translate-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
     }
 
     .msg-content {
@@ -410,6 +485,22 @@
       color: var(--text-main);
       word-wrap: break-word;
       overflow-wrap: anywhere;
+    }
+
+    .msg-content.translated-mode {
+      color: var(--on-primary-container);
+    }
+
+    .translated-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--primary);
+      background: rgba(46, 60, 126, 0.45);
+      border: 1px solid rgba(184, 196, 255, 0.25);
+      padding: 1px 6px;
+      border-radius: 6px;
+      margin-bottom: 4px;
     }
 
     /* Стилизация внутренности из DiscordChatExporter */
@@ -489,39 +580,12 @@
       font-size: 12px;
     }
 
-    /* Блок перевода */
-    .translation-box {
-      margin-top: 8px;
-      padding: 10px 12px;
-      background: rgba(46, 60, 126, 0.25);
-      border: 1px solid rgba(184, 196, 255, 0.25);
-      border-radius: var(--radius-md);
-      font-size: 14px;
-      line-height: 1.45;
-      color: var(--on-primary-container);
-    }
-
-    .translation-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--primary);
-      margin-bottom: 4px;
-      font-weight: 500;
-    }
-
-    .translation-header a {
-      color: var(--primary);
-      text-decoration: underline;
-    }
-
     /* Плавающая плашка позиции */
     .floating-bar {
       position: absolute;
       bottom: 16px;
       right: 20px;
-      background: rgba(27, 28, 34, 0.92);
+      background: rgba(27, 28, 34, 0.94);
       backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 999px;
@@ -529,8 +593,8 @@
       display: none;
       align-items: center;
       gap: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      z-index: 10;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      z-index: 20;
       font-size: 12px;
     }
 
@@ -568,7 +632,7 @@
     @media (max-width: 640px) {
       .app-header {
         flex-wrap: wrap;
-        padding: 10px 12px;
+        padding: 10px 12px 10px 62px;
       }
       .header-controls {
         width: 100%;
@@ -582,11 +646,16 @@
       }
       .msg-item {
         padding: 10px 12px;
+      }
+      .msg-main-row {
         gap: 10px;
       }
       .msg-avatar-wrap {
-        width: 34px;
-        height: 34px;
+        width: 36px;
+        height: 36px;
+      }
+      .msg-reply {
+        padding-left: 46px;
       }
       .floating-bar {
         left: 12px;
@@ -599,8 +668,15 @@
 </head>
 <body>
 
+  <!-- Плавающая кнопка слева сверху для показа/скрытия всего интерфейса -->
+  <button class="ui-toggle-fab" id="uiToggleBtn" title="Скрыть / показать панели управления">
+    <svg viewBox="0 0 24 24" id="uiToggleIcon">
+      <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
+    </svg>
+  </button>
+
   <!-- Верхняя панель -->
-  <header class="app-header">
+  <header class="app-header" id="appHeader">
     <div class="channel-info">
       <div class="hash-icon">#</div>
       <div class="title-wrap">
@@ -639,8 +715,8 @@
       <div class="feature-badges">
         <span class="badge">⚡ Без лагов (Виртуальный скролл)</span>
         <span class="badge">🔖 Автозакладка позиции</span>
-        <span class="badge">🌐 Встроенный перевод EN → RU</span>
-        <span class="badge">📱 Работает как PWA</span>
+        <span class="badge">🌐 Перевод прямо в сообщении</span>
+        <span class="badge">📱 Поддержка PWA</span>
       </div>
       <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()" style="margin-top: 8px; padding: 11px 22px; font-size: 14px;">
         Выбрать HTML-файл экспорта
@@ -668,31 +744,38 @@
 
   <script>
     /* =========================================================================
-       1. PWA Инициализация (Манифест + Service Worker в одном файле)
+       1. Регистрация Service Worker для установки как PWA с GitHub Pages
        ========================================================================= */
-    (function setupPWA() {
-      const manifest = {
-        name: "Discord Archive Reader",
-        short_name: "DiscordReader",
-        start_url: ".",
-        display: "standalone",
-        background_color: "#111216",
-        theme_color: "#131318",
-        icons: [{
-          src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%232e3c7e'/><text x='50' y='67' font-size='52' text-anchor='middle' fill='%23dde1ff' font-family='sans-serif' font-weight='bold'>#</text></svg>",
-          sizes: "192x192",
-          type: "image/svg+xml"
-        }]
-      };
-      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-      const link = document.createElement('link');
-      link.rel = 'manifest';
-      link.href = URL.createObjectURL(manifestBlob);
-      document.head.appendChild(link);
-    })();
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => {
+          console.log('SW registration failed:', err);
+        });
+      });
+    }
 
     /* =========================================================================
-       2. Конфигурация IndexedDB и состояния
+       2. Логика скрытия и показа интерфейса (верхний и нижний бар)
+       ========================================================================= */
+    const uiToggleBtn = document.getElementById('uiToggleBtn');
+
+    // На телефонах по умолчанию скрываем панели, когда чат открыт, чтобы не мешали читать
+    function setUIHidden(hidden) {
+      if (hidden) {
+        document.body.classList.add('ui-hidden');
+      } else {
+        document.body.classList.remove('ui-hidden');
+      }
+      localStorage.setItem('discord_reader_ui_hidden', hidden ? '1' : '0');
+    }
+
+    uiToggleBtn.addEventListener('click', () => {
+      const isHidden = document.body.classList.contains('ui-hidden');
+      setUIHidden(!isHidden);
+    });
+
+    /* =========================================================================
+       3. Конфигурация IndexedDB и состояния
        ========================================================================= */
     const DB_NAME = 'DiscordReaderDB_v1';
     const DB_VERSION = 1;
@@ -700,12 +783,14 @@
 
     let totalMessages = 0;
     let currentChannelName = '';
-    let activeIndices = null; // null = все сообщения, иначе массив ID после поиска
+    let activeIndices = null;
     let renderedRange = { start: -1, end: -1 };
     let messageCache = new Map();
-    const WINDOW_SIZE = 36;        // Сколько сообщений реально находится в DOM
-    const ESTIMATED_HEIGHT = 96;   // Средняя высота для виртуального скролла
-    let heightMap = new Map();     // Точные замеры высот прочитанных сообщений
+    let translatedCache = new Map(); // Кэш переведенных сообщений (id -> текст перевода)
+    let activeTranslations = new Set(); // Какие сообщения сейчас переключены на русский
+
+    const WINDOW_SIZE = 36;
+    const ESTIMATED_HEIGHT = 96;
     let saveBookmarkTimer = null;
     let isProgrammaticScroll = false;
 
@@ -730,6 +815,13 @@
       jumpInput: document.getElementById('jumpInput'),
       jumpBtn: document.getElementById('jumpBtn')
     };
+
+    // SVG-иконка Google Translate
+    const TRANSLATE_ICON_SVG = `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
+      </svg>
+    `;
 
     function initDB() {
       return new Promise((resolve, reject) => {
@@ -824,26 +916,27 @@
     }
 
     /* =========================================================================
-       3. Потоковый парсер 90MB+ файлов DiscordChatExporter
+       4. Потоковый парсер 90MB+ файлов DiscordChatExporter
        ========================================================================= */
     async function parseHugeDiscordHTML(file) {
+      setUIHidden(false);
       els.progressWrap.classList.add('active');
       els.progressStatus.textContent = 'Очистка старого кэша...';
       els.progressFill.style.width = '0%';
 
       await clearDatabase();
       messageCache.clear();
-      heightMap.clear();
+      translatedCache.clear();
+      activeTranslations.clear();
       activeIndices = null;
       els.searchInput.value = '';
 
-      const CHUNK_SIZE = 2 * 1024 * 1024; // Читаем по 2 МБ за шаг, чтобы не забить ОЗУ
+      const CHUNK_SIZE = 2 * 1024 * 1024;
       let offset = 0;
       let buffer = '';
       let msgId = 0;
       let channelTitle = file.name.replace(/\.html?$/i, '');
 
-      // Память для склеивания идущих подряд сообщений от одного автора
       let lastAuthor = 'Unknown';
       let lastAvatar = '';
       let lastColor = '';
@@ -856,7 +949,6 @@
         buffer += chunkText;
         offset += CHUNK_SIZE;
 
-        // В первом чанке пытаемся вытащить название канала из <title>
         if (offset <= CHUNK_SIZE * 2) {
           const titleMatch = buffer.match(/<title>([\s\S]*?)<\/title>/i);
           if (titleMatch && titleMatch[1]) {
@@ -864,10 +956,8 @@
           }
         }
 
-        // Разрезаем буфер по контейнерам сообщений DiscordChatExporter
         const parts = buffer.split(/(?=<div class="chatlog__message-group"|<div class="chatlog__message-container")/i);
 
-        // Оставляем последний кусок в буфере, так как он мог оборваться посередине тега
         if (offset < file.size && parts.length > 1) {
           buffer = parts.pop();
         } else if (offset >= file.size) {
@@ -882,7 +972,6 @@
           if (!rawPart.includes('chatlog__message')) continue;
 
           const doc = domParser.parseFromString(rawPart, 'text/html');
-          // Поддержка как новых версий DiscordChatExporter (.chatlog__message-container), так и старых (.chatlog__message)
           let msgNodes = doc.querySelectorAll('.chatlog__message-container');
           if (msgNodes.length === 0) {
             msgNodes = doc.querySelectorAll('.chatlog__message');
@@ -914,19 +1003,19 @@
               replyText = replyEl.textContent.replace(/\s+/g, ' ').trim();
             }
 
-            // Собираем весь контент: текст, картинки, вложения, реакции
-            const contentParts = [];
-            const markdownEl = node.querySelector('.chatlog__markdown, .chatlog__content');
-            if (markdownEl) contentParts.push(markdownEl.innerHTML);
+            const markdownEl = node.querySelector('.chatlog__markdown-preserve, .chatlog__markdown, .chatlog__content');
+            const textHtml = markdownEl ? markdownEl.innerHTML : '';
 
+            // Вложения, эмбеды и реакции храним отдельно, чтобы при переводе текста картинки не пропадали
+            const extrasParts = [];
             node.querySelectorAll('.chatlog__attachment, .chatlog__embed, .chatlog__reactions').forEach(ext => {
-              // Избегаем дублирования, если они уже внутри .chatlog__content
               if (!markdownEl || !markdownEl.contains(ext)) {
-                contentParts.push(ext.outerHTML);
+                extrasParts.push(ext.outerHTML);
               }
             });
 
-            const htmlContent = contentParts.join('\n') || node.innerHTML;
+            const htmlContent = [textHtml, ...extrasParts].filter(Boolean).join('\n') || node.innerHTML;
+            const extrasHtml = extrasParts.join('\n');
             const plainText = (markdownEl ? markdownEl.textContent : node.textContent)
               .replace(/\s+/g, ' ')
               .trim();
@@ -941,6 +1030,7 @@
               date: dateStr,
               reply: replyText,
               html: htmlContent,
+              extras: extrasHtml,
               plain: plainText
             });
           }
@@ -955,7 +1045,6 @@
         els.progressPercent.textContent = pct + '%';
         els.progressStatus.textContent = `Обработано сообщений: ${msgId.toLocaleString('ru-RU')}...`;
 
-        // Даем браузеру отрисовать кадр
         await new Promise(r => setTimeout(r, 0));
       }
 
@@ -971,7 +1060,7 @@
     }
 
     /* =========================================================================
-       4. Виртуальный скролл (Рендеринг без лагов)
+       5. Виртуальный скролл и рендеринг сообщений
        ========================================================================= */
     function getTotalCount() {
       return activeIndices ? activeIndices.length : totalMessages;
@@ -988,6 +1077,12 @@
 
       els.channelTitle.textContent = currentChannelName || 'Экспорт чата';
       updateStatsHeader();
+
+      // Если на телефоне и пользователь раньше скрывал бар — восстанавливаем состояние
+      const savedHidden = localStorage.getItem('discord_reader_ui_hidden');
+      if (savedHidden === '1' || (savedHidden === null && window.innerWidth <= 640)) {
+        setUIHidden(true);
+      }
 
       renderedRange = { start: -1, end: -1 };
       await renderWindowAround(startSlot, true);
@@ -1023,7 +1118,6 @@
         for (const m of fetched) {
           messageCache.set(m.id, m);
         }
-        // Ограничиваем размер кэша в оперативной памяти до 400 сообщений
         if (messageCache.size > 400) {
           const keys = Array.from(messageCache.keys());
           for (let i = 0; i < 150; i++) messageCache.delete(keys[i]);
@@ -1034,6 +1128,18 @@
         slot: pair.slot,
         data: messageCache.get(pair.id)
       })).filter(item => item.data);
+    }
+
+    function buildMessageBodyContent(data) {
+      if (activeTranslations.has(data.id) && translatedCache.has(data.id)) {
+        const ruText = translatedCache.get(data.id);
+        return `
+          <div class="translated-badge">RU Перевод</div>
+          <div>${escapeHtml(ruText)}</div>
+          ${data.extras || ''}
+        `;
+      }
+      return data.html;
     }
 
     async function renderWindowAround(centerSlot, scrollToCenter = false) {
@@ -1068,41 +1174,41 @@
       els.messagesList.innerHTML = items.map(({ slot, data }) => {
         const initials = (data.author || '?').slice(0, 2).toUpperCase();
         const isBookmarked = data.id === savedReadId;
+        const isTranslated = activeTranslations.has(data.id);
 
         const avatarHtml = data.avatar
           ? `<img class="msg-avatar" src="${escapeAttr(data.avatar)}" loading="lazy" onerror="this.style.display='none';this.parentElement.textContent='${initials}'">`
           : initials;
 
+        // Ответ вынесен НАД .msg-main-row, чтобы верх аватарки всегда был ровно на уровне ника
         const replyHtml = data.reply
           ? `<div class="msg-reply">${escapeHtml(data.reply)}</div>`
           : '';
 
         return `
           <article class="msg-item ${isBookmarked ? 'bookmark-highlight' : ''}" data-slot="${slot}" data-id="${data.id}">
-            <div class="msg-avatar-wrap">${avatarHtml}</div>
-            <div class="msg-body">
-              ${replyHtml}
-              <div class="msg-header">
-                <span class="msg-author" style="${escapeAttr(data.color)}">${escapeHtml(data.author)}</span>
-                <span class="msg-date">${escapeHtml(data.date)}</span>
-                <span class="msg-index">#${data.id + 1}</span>
-                <div class="msg-actions">
-                  <button class="action-chip" onclick="translateMessage(${data.id}, this)" title="Перевести сообщение с английского на русский">
-                    🌐 EN → RU
+            ${replyHtml}
+            <div class="msg-main-row">
+              <div class="msg-avatar-wrap">${avatarHtml}</div>
+              <div class="msg-body">
+                <div class="msg-header">
+                  <span class="msg-author" style="${escapeAttr(data.color)}">${escapeHtml(data.author)}</span>
+                  <span class="msg-date">${escapeHtml(data.date)}</span>
+                  <span class="msg-index">#${data.id + 1}</span>
+                  <button class="translate-btn ${isTranslated ? 'active' : ''}" onclick="translateMessage(${data.id}, this)" title="Перевести сообщение / Показать оригинал">
+                    ${TRANSLATE_ICON_SVG}
                   </button>
                 </div>
+                <div class="msg-content ${isTranslated ? 'translated-mode' : ''}" id="content-${data.id}">
+                  ${buildMessageBodyContent(data)}
+                </div>
               </div>
-              <div class="msg-content" id="content-${data.id}">${data.html}</div>
-              <div id="trans-${data.id}"></div>
             </div>
           </article>
         `;
       }).join('');
 
-      // Раскрытие спойлеров по клику
-      els.messagesList.querySelectorAll('.chatlog__markdown-spoiler').forEach(sp => {
-        sp.addEventListener('click', () => sp.classList.toggle('revealed'));
-      });
+      attachSpoilerListeners(els.messagesList);
 
       if (scrollToCenter) {
         isProgrammaticScroll = true;
@@ -1117,6 +1223,12 @@
       }
     }
 
+    function attachSpoilerListeners(root) {
+      root.querySelectorAll('.chatlog__markdown-spoiler').forEach(sp => {
+        sp.onclick = () => sp.classList.toggle('revealed');
+      });
+    }
+
     // Обработчик скролла + автосохранение последнего прочитанного сообщения
     els.chatScroller.addEventListener('scroll', () => {
       if (isProgrammaticScroll || getTotalCount() === 0) return;
@@ -1124,12 +1236,10 @@
       const scrollTop = els.chatScroller.scrollTop;
       const approxSlot = Math.floor(scrollTop / ESTIMATED_HEIGHT);
 
-      // Если пользователь приблизился к краю отрендеренного окна — подгружаем новые сообщения
       if (approxSlot < renderedRange.start + 6 || approxSlot > renderedRange.end - 6) {
         renderWindowAround(approxSlot, false);
       }
 
-      // Определяем верхнее видимое сообщение для сохранения закладки
       clearTimeout(saveBookmarkTimer);
       saveBookmarkTimer = setTimeout(() => {
         const containerTop = els.chatScroller.getBoundingClientRect().top;
@@ -1156,35 +1266,44 @@
     }
 
     /* =========================================================================
-       5. Перевод конкретного сообщения через Google Translate (EN -> RU)
+       6. Перевод сообщения ВМЕСТО оригинала и возврат обратно по клику
        ========================================================================= */
     window.translateMessage = async function(msgId, btnEl) {
-      const transContainer = document.getElementById(`trans-${msgId}`);
-      if (!transContainer) return;
-
-      // Если перевод уже открыт — скрываем по повторному нажатию
-      if (transContainer.innerHTML.trim() !== '') {
-        transContainer.innerHTML = '';
-        btnEl.textContent = '🌐 EN → RU';
-        return;
-      }
+      const contentEl = document.getElementById(`content-${msgId}`);
+      if (!contentEl) return;
 
       let msgData = messageCache.get(msgId);
       if (!msgData) {
         const arr = await getMessagesByIds([msgId]);
         msgData = arr[0];
+        if (msgData) messageCache.set(msgId, msgData);
       }
+      if (!msgData) return;
 
-      const textToTranslate = msgData?.plain?.trim();
-      if (!textToTranslate) {
-        transContainer.innerHTML = `<div class="translation-box">Нет текста для перевода.</div>`;
+      // Если сейчас показан перевод — возвращаем оригинальное английское сообщение
+      if (activeTranslations.has(msgId)) {
+        activeTranslations.delete(msgId);
+        btnEl.classList.remove('active');
+        contentEl.classList.remove('translated-mode');
+        contentEl.innerHTML = msgData.html;
+        attachSpoilerListeners(contentEl);
         return;
       }
 
-      btnEl.textContent = '⏳ Перевод...';
-      btnEl.disabled = true;
+      // Если перевод уже есть в кэше — сразу подменяем текст без повторного запроса
+      if (translatedCache.has(msgId)) {
+        activeTranslations.add(msgId);
+        btnEl.classList.add('active');
+        contentEl.classList.add('translated-mode');
+        contentEl.innerHTML = buildMessageBodyContent(msgData);
+        return;
+      }
 
-      const googleWebUrl = `https://translate.google.com/?sl=en&tl=ru&text=${encodeURIComponent(textToTranslate)}&op=translate`;
+      const textToTranslate = msgData.plain?.trim();
+      if (!textToTranslate) return;
+
+      btnEl.disabled = true;
+      btnEl.style.opacity = '0.5';
 
       try {
         const apiUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ru&dt=t&q=${encodeURIComponent(textToTranslate)}`;
@@ -1193,35 +1312,23 @@
         const data = await res.json();
 
         const translatedText = data[0].map(part => part[0]).join('');
+        translatedCache.set(msgId, translatedText);
+        activeTranslations.add(msgId);
 
-        transContainer.innerHTML = `
-          <div class="translation-box">
-            <div class="translation-header">
-              <span>Google Переводчик (EN → RU)</span>
-              <a href="${googleWebUrl}" target="_blank" rel="noopener">Открыть в Google ↗</a>
-            </div>
-            <div>${escapeHtml(translatedText)}</div>
-          </div>
-        `;
-        btnEl.textContent = '✖ Скрыть перевод';
+        btnEl.classList.add('active');
+        contentEl.classList.add('translated-mode');
+        contentEl.innerHTML = buildMessageBodyContent(msgData);
       } catch (err) {
-        // Если нет интернета или запрос заблокирован — даем прямую кнопку на Google Переводчик
-        transContainer.innerHTML = `
-          <div class="translation-box">
-            <div class="translation-header">
-              <span>Не удалось загрузить встроенный перевод</span>
-              <a href="${googleWebUrl}" target="_blank" rel="noopener">Открыть в Google Translate ↗</a>
-            </div>
-          </div>
-        `;
-        btnEl.textContent = '🌐 EN → RU';
+        const googleWebUrl = `https://translate.google.com/?sl=en&tl=ru&text=${encodeURIComponent(textToTranslate)}&op=translate`;
+        window.open(googleWebUrl, '_blank', 'noopener');
       } finally {
         btnEl.disabled = false;
+        btnEl.style.opacity = '1';
       }
     };
 
     /* =========================================================================
-       6. Поиск по чату и быстрый переход по номеру
+       7. Поиск по чату и быстрый переход по номеру
        ========================================================================= */
     let searchDebounce = null;
     els.searchInput.addEventListener('input', (e) => {
@@ -1283,7 +1390,7 @@
     });
 
     /* =========================================================================
-       7. Обработчики файлов и автозапуск с последнего сообщения
+       8. Обработчики файлов и автозапуск с последнего сообщения
        ========================================================================= */
     els.openFileBtn.addEventListener('click', () => els.fileInput.click());
 
