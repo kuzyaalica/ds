@@ -7,7 +7,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Discord Archive Reader</title>
-  <!-- Подключение манифеста для PWA на GitHub Pages -->
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -90,21 +89,16 @@
     .app-header {
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border);
-      padding: 10px 16px 10px 64px; /* Отступ слева под плавающую кнопку */
+      padding: 10px 16px 10px 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       z-index: 30;
       flex-shrink: 0;
-      transition: transform 0.25s ease, opacity 0.2s ease;
     }
 
-    /* Состояние когда UI скрыт */
-    body.ui-hidden .app-header {
-      display: none !important;
-    }
-
+    body.ui-hidden .app-header,
     body.ui-hidden .floating-bar {
       display: none !important;
     }
@@ -155,6 +149,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .search-box {
@@ -170,7 +165,7 @@
       padding: 8px 14px;
       border-radius: 999px;
       font-size: 13px;
-      width: 190px;
+      width: 180px;
       outline: none;
       transition: all 0.2s ease;
       font-family: inherit;
@@ -178,14 +173,14 @@
 
     .search-input:focus {
       border-color: var(--primary);
-      width: 240px;
+      width: 220px;
     }
 
     .btn {
       background: var(--bg-elevated);
       color: var(--text-main);
       border: 1px solid var(--border);
-      padding: 8px 14px;
+      padding: 8px 13px;
       border-radius: 999px;
       font-size: 13px;
       font-weight: 500;
@@ -193,7 +188,7 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: background 0.15s, transform 0.1s;
+      transition: background 0.15s, transform 0.1s, border-color 0.15s;
       font-family: inherit;
       white-space: nowrap;
     }
@@ -214,6 +209,12 @@
 
     .btn-primary:hover {
       background: #3a4a96;
+    }
+
+    .btn-toggle.active {
+      background: rgba(133, 214, 140, 0.16);
+      color: var(--accent-green);
+      border-color: var(--accent-green);
     }
 
     /* Полоса загрузки файла */
@@ -318,12 +319,13 @@
       border: 1px solid var(--border);
     }
 
-    /* Контейнер сообщений */
+    /* Контейнер сообщений — ВАЖНО: overflow-anchor: none убирает баг с бешеной самопрокруткой */
     .chat-scroller {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
       scroll-behavior: auto;
+      overflow-anchor: none;
       padding: 8px 0;
       display: none;
     }
@@ -335,6 +337,11 @@
     .virtual-spacer {
       width: 100%;
       pointer-events: none;
+      overflow-anchor: none;
+    }
+
+    #messagesList {
+      overflow-anchor: none;
     }
 
     /* Карточка сообщения с разделительной полоской */
@@ -345,7 +352,8 @@
       position: relative;
       transition: background 0.1s;
       border-left: 3px solid transparent;
-      border-bottom: 1px solid var(--border); /* Полосочка между сообщениями */
+      border-bottom: 1px solid var(--border);
+      overflow-anchor: none;
     }
 
     .msg-item:hover {
@@ -357,7 +365,7 @@
       background: rgba(184, 196, 255, 0.04);
     }
 
-    /* Блок ответа (теперь НАД строкой с аватаркой и ником) */
+    /* Блок ответа (над строкой с аватаркой и ником) */
     .msg-reply {
       display: flex;
       align-items: center;
@@ -365,7 +373,7 @@
       font-size: 12px;
       color: var(--text-muted);
       margin-bottom: 6px;
-      padding-left: 54px; /* Выравнивание по тексту над ником */
+      padding-left: 54px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -640,6 +648,7 @@
       }
       .search-box {
         flex: 1;
+        min-width: 130px;
       }
       .search-input, .search-input:focus {
         width: 100%;
@@ -687,10 +696,13 @@
 
     <div class="header-controls">
       <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="Поиск по сообщениям..." disabled>
+        <input type="text" id="searchInput" class="search-input" placeholder="Поиск..." disabled>
       </div>
+      <button class="btn btn-toggle" id="autoTranslateBtn" title="Автоматически переводить видимые сообщения при прокрутке">
+        🌐 Автоперевод: Выкл
+      </button>
       <input type="file" id="fileInput" accept=".html,.htm" hidden>
-      <button class="btn btn-primary" id="openFileBtn">📂 Открыть HTML</button>
+      <button class="btn btn-primary" id="openFileBtn">📂 Открыть</button>
       <button class="btn" id="clearDbBtn" title="Очистить сохраненный чат из памяти" style="display:none;">🗑️</button>
     </div>
   </header>
@@ -713,9 +725,9 @@
       <h2>Читалка больших чатов Discord</h2>
       <p>Поддерживает HTML-экспорты из <b>DiscordChatExporter</b> любого размера (даже 90+ МБ). Файл читается потоком, сохраняется в память браузера и открывается мгновенно на последнем прочитанном сообщении.</p>
       <div class="feature-badges">
-        <span class="badge">⚡ Без лагов (Виртуальный скролл)</span>
+        <span class="badge">⚡ Стабильный скролл без прыжков</span>
         <span class="badge">🔖 Автозакладка позиции</span>
-        <span class="badge">🌐 Перевод прямо в сообщении</span>
+        <span class="badge">🌐 Автоперевод на лету</span>
         <span class="badge">📱 Поддержка PWA</span>
       </div>
       <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()" style="margin-top: 8px; padding: 11px 22px; font-size: 14px;">
@@ -744,7 +756,7 @@
 
   <script>
     /* =========================================================================
-       1. Регистрация Service Worker для установки как PWA с GitHub Pages
+       1. Регистрация Service Worker для PWA
        ========================================================================= */
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -755,11 +767,32 @@
     }
 
     /* =========================================================================
-       2. Логика скрытия и показа интерфейса (верхний и нижний бар)
+       2. Логика скрытия/показа интерфейса и кнопки Автоперевода
        ========================================================================= */
     const uiToggleBtn = document.getElementById('uiToggleBtn');
+    const autoTranslateBtn = document.getElementById('autoTranslateBtn');
+    let autoTranslateEnabled = localStorage.getItem('discord_reader_autotranslate') === '1';
 
-    // На телефонах по умолчанию скрываем панели, когда чат открыт, чтобы не мешали читать
+    function updateAutoTranslateButtonUI() {
+      if (autoTranslateEnabled) {
+        autoTranslateBtn.classList.add('active');
+        autoTranslateBtn.textContent = '🌐 Автоперевод: Вкл';
+      } else {
+        autoTranslateBtn.classList.remove('active');
+        autoTranslateBtn.textContent = '🌐 Автоперевод: Выкл';
+      }
+    }
+    updateAutoTranslateButtonUI();
+
+    autoTranslateBtn.addEventListener('click', () => {
+      autoTranslateEnabled = !autoTranslateEnabled;
+      localStorage.setItem('discord_reader_autotranslate', autoTranslateEnabled ? '1' : '0');
+      updateAutoTranslateButtonUI();
+      if (autoTranslateEnabled) {
+        queueVisibleMessagesForAutoTranslate();
+      }
+    });
+
     function setUIHidden(hidden) {
       if (hidden) {
         document.body.classList.add('ui-hidden');
@@ -775,7 +808,7 @@
     });
 
     /* =========================================================================
-       3. Конфигурация IndexedDB и состояния
+       3. Конфигурация IndexedDB и состояния виртуального скролла
        ========================================================================= */
     const DB_NAME = 'DiscordReaderDB_v1';
     const DB_VERSION = 1;
@@ -786,12 +819,20 @@
     let activeIndices = null;
     let renderedRange = { start: -1, end: -1 };
     let messageCache = new Map();
-    let translatedCache = new Map(); // Кэш переведенных сообщений (id -> текст перевода)
-    let activeTranslations = new Set(); // Какие сообщения сейчас переключены на русский
+    let translatedCache = new Map();
+    let activeTranslations = new Set();
+    let manualUntranslated = new Set(); // Если юзер вручную отключил перевод конкретного сообщения
 
-    const WINDOW_SIZE = 36;
-    const ESTIMATED_HEIGHT = 96;
+    const WINDOW_SIZE = 44;        // Рендерим с запасом, чтобы реже перестраивать DOM
+    const BUFFER_THRESHOLD = 10;   // Порог подгрузки
+    const DEFAULT_HEIGHT = 96;
+
+    // Точный учет высот элементов для устранения самопроизвольной прокрутки
+    let slotHeights = new Map();   // slot -> точная измеренная высота в px
+    let isRenderingWindow = false;
+    let pendingCenterSlot = null;
     let saveBookmarkTimer = null;
+    let autoTranslateTimer = null;
     let isProgrammaticScroll = false;
 
     const els = {
@@ -816,7 +857,6 @@
       jumpBtn: document.getElementById('jumpBtn')
     };
 
-    // SVG-иконка Google Translate
     const TRANSLATE_ICON_SVG = `
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
@@ -928,6 +968,8 @@
       messageCache.clear();
       translatedCache.clear();
       activeTranslations.clear();
+      manualUntranslated.clear();
+      slotHeights.clear();
       activeIndices = null;
       els.searchInput.value = '';
 
@@ -1006,7 +1048,6 @@
             const markdownEl = node.querySelector('.chatlog__markdown-preserve, .chatlog__markdown, .chatlog__content');
             const textHtml = markdownEl ? markdownEl.innerHTML : '';
 
-            // Вложения, эмбеды и реакции храним отдельно, чтобы при переводе текста картинки не пропадали
             const extrasParts = [];
             node.querySelectorAll('.chatlog__attachment, .chatlog__embed, .chatlog__reactions').forEach(ext => {
               if (!markdownEl || !markdownEl.contains(ext)) {
@@ -1060,10 +1101,51 @@
     }
 
     /* =========================================================================
-       5. Виртуальный скролл и рендеринг сообщений
+       5. Стабильный виртуальный скролл с якорем (Фикс бага самопрокрутки)
        ========================================================================= */
     function getTotalCount() {
       return activeIndices ? activeIndices.length : totalMessages;
+    }
+
+    function getSlotHeight(slot) {
+      return slotHeights.get(slot) || DEFAULT_HEIGHT;
+    }
+
+    // Считаем высоту верхнего спейсера с учетом измеренных сообщений
+    function computeOffsetBeforeSlot(targetSlot) {
+      let sum = targetSlot * DEFAULT_HEIGHT;
+      slotHeights.forEach((h, s) => {
+        if (s < targetSlot) {
+          sum += (h - DEFAULT_HEIGHT);
+        }
+      });
+      return Math.max(0, sum);
+    }
+
+    function computeOffsetAfterSlot(lastSlot, count) {
+      const remaining = Math.max(0, count - 1 - lastSlot);
+      let sum = remaining * DEFAULT_HEIGHT;
+      slotHeights.forEach((h, s) => {
+        if (s > lastSlot && s < count) {
+          sum += (h - DEFAULT_HEIGHT);
+        }
+      });
+      return Math.max(0, sum);
+    }
+
+    function recordMeasuredHeights() {
+      const nodes = els.messagesList.querySelectorAll('.msg-item');
+      nodes.forEach(node => {
+        const s = parseInt(node.getAttribute('data-slot'), 10);
+        if (!isNaN(s) && node.offsetHeight > 0) {
+          slotHeights.set(s, node.offsetHeight);
+        }
+      });
+      // Ограничиваем размер карты высот, чтобы не раздувать память
+      if (slotHeights.size > 3000) {
+        const firstKey = slotHeights.keys().next().value;
+        slotHeights.delete(firstKey);
+      }
     }
 
     async function activateReaderUI(startSlot = 0) {
@@ -1078,7 +1160,6 @@
       els.channelTitle.textContent = currentChannelName || 'Экспорт чата';
       updateStatsHeader();
 
-      // Если на телефоне и пользователь раньше скрывал бар — восстанавливаем состояние
       const savedHidden = localStorage.getItem('discord_reader_ui_hidden');
       if (savedHidden === '1' || (savedHidden === null && window.innerWidth <= 640)) {
         setUIHidden(true);
@@ -1142,7 +1223,29 @@
       return data.html;
     }
 
-    async function renderWindowAround(centerSlot, scrollToCenter = false) {
+    // Находим якорный элемент на экране, чтобы после подгрузки новых сообщений он остался ровно на том же пикселе
+    function captureScrollAnchor() {
+      const scrollerTop = els.chatScroller.getBoundingClientRect().top;
+      const nodes = els.messagesList.querySelectorAll('.msg-item');
+      for (const node of nodes) {
+        const rect = node.getBoundingClientRect();
+        if (rect.bottom > scrollerTop) {
+          return {
+            slot: parseInt(node.getAttribute('data-slot'), 10),
+            id: parseInt(node.getAttribute('data-id'), 10),
+            offsetFromTop: rect.top - scrollerTop
+          };
+        }
+      }
+      return null;
+    }
+
+    async function renderWindowAround(centerSlot, forceJump = false) {
+      if (isRenderingWindow) {
+        pendingCenterSlot = { centerSlot, forceJump };
+        return;
+      }
+
       const count = getTotalCount();
       if (count === 0) {
         els.messagesList.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted);">Ничего не найдено</div>`;
@@ -1156,70 +1259,109 @@
       const startSlot = Math.max(0, clampedCenter - half);
       const endSlot = Math.min(count - 1, startSlot + WINDOW_SIZE - 1);
 
-      if (!scrollToCenter && renderedRange.start === startSlot && renderedRange.end === endSlot) {
+      if (!forceJump && renderedRange.start === startSlot && renderedRange.end === endSlot) {
         return;
       }
 
-      renderedRange = { start: startSlot, end: endSlot };
-      const items = await fetchMessagesForSlots(startSlot, endSlot);
+      isRenderingWindow = true;
 
-      const topHeight = startSlot * ESTIMATED_HEIGHT;
-      const bottomHeight = Math.max(0, (count - 1 - endSlot) * ESTIMATED_HEIGHT);
+      try {
+        // Перед перестройкой DOM замеряем текущие высоты и запоминаем якорь на экране
+        recordMeasuredHeights();
+        const anchor = !forceJump ? captureScrollAnchor() : null;
 
-      els.topSpacer.style.height = `${topHeight}px`;
-      els.bottomSpacer.style.height = `${bottomHeight}px`;
+        const items = await fetchMessagesForSlots(startSlot, endSlot);
+        renderedRange = { start: startSlot, end: endSlot };
 
-      const savedReadId = await getMeta('lastReadIndex') || 0;
+        const topHeight = computeOffsetBeforeSlot(startSlot);
+        const bottomHeight = computeOffsetAfterSlot(endSlot, count);
 
-      els.messagesList.innerHTML = items.map(({ slot, data }) => {
-        const initials = (data.author || '?').slice(0, 2).toUpperCase();
-        const isBookmarked = data.id === savedReadId;
-        const isTranslated = activeTranslations.has(data.id);
+        const savedReadId = await getMeta('lastReadIndex') || 0;
 
-        const avatarHtml = data.avatar
-          ? `<img class="msg-avatar" src="${escapeAttr(data.avatar)}" loading="lazy" onerror="this.style.display='none';this.parentElement.textContent='${initials}'">`
-          : initials;
+        const htmlString = items.map(({ slot, data }) => {
+          const initials = (data.author || '?').slice(0, 2).toUpperCase();
+          const isBookmarked = data.id === savedReadId;
 
-        // Ответ вынесен НАД .msg-main-row, чтобы верх аватарки всегда был ровно на уровне ника
-        const replyHtml = data.reply
-          ? `<div class="msg-reply">${escapeHtml(data.reply)}</div>`
-          : '';
+          // Если автоперевод включен и перевод уже в кэше — сразу показываем перевод
+          if (autoTranslateEnabled && translatedCache.has(data.id) && !manualUntranslated.has(data.id)) {
+            activeTranslations.add(data.id);
+          }
+          const isTranslated = activeTranslations.has(data.id);
 
-        return `
-          <article class="msg-item ${isBookmarked ? 'bookmark-highlight' : ''}" data-slot="${slot}" data-id="${data.id}">
-            ${replyHtml}
-            <div class="msg-main-row">
-              <div class="msg-avatar-wrap">${avatarHtml}</div>
-              <div class="msg-body">
-                <div class="msg-header">
-                  <span class="msg-author" style="${escapeAttr(data.color)}">${escapeHtml(data.author)}</span>
-                  <span class="msg-date">${escapeHtml(data.date)}</span>
-                  <span class="msg-index">#${data.id + 1}</span>
-                  <button class="translate-btn ${isTranslated ? 'active' : ''}" onclick="translateMessage(${data.id}, this)" title="Перевести сообщение / Показать оригинал">
-                    ${TRANSLATE_ICON_SVG}
-                  </button>
-                </div>
-                <div class="msg-content ${isTranslated ? 'translated-mode' : ''}" id="content-${data.id}">
-                  ${buildMessageBodyContent(data)}
+          const avatarHtml = data.avatar
+            ? `<img class="msg-avatar" src="${escapeAttr(data.avatar)}" loading="lazy" onerror="this.style.display='none';this.parentElement.textContent='${initials}'">`
+            : initials;
+
+          const replyHtml = data.reply
+            ? `<div class="msg-reply">${escapeHtml(data.reply)}</div>`
+            : '';
+
+          return `
+            <article class="msg-item ${isBookmarked ? 'bookmark-highlight' : ''}" data-slot="${slot}" data-id="${data.id}">
+              ${replyHtml}
+              <div class="msg-main-row">
+                <div class="msg-avatar-wrap">${avatarHtml}</div>
+                <div class="msg-body">
+                  <div class="msg-header">
+                    <span class="msg-author" style="${escapeAttr(data.color)}">${escapeHtml(data.author)}</span>
+                    <span class="msg-date">${escapeHtml(data.date)}</span>
+                    <span class="msg-index">#${data.id + 1}</span>
+                    <button class="translate-btn ${isTranslated ? 'active' : ''}" id="tbtn-${data.id}" onclick="translateMessage(${data.id}, this)" title="Перевести сообщение / Показать оригинал">
+                      ${TRANSLATE_ICON_SVG}
+                    </button>
+                  </div>
+                  <div class="msg-content ${isTranslated ? 'translated-mode' : ''}" id="content-${data.id}">
+                    ${buildMessageBodyContent(data)}
+                  </div>
                 </div>
               </div>
-            </div>
-          </article>
-        `;
-      }).join('');
+            </article>
+          `;
+        }).join('');
 
-      attachSpoilerListeners(els.messagesList);
-
-      if (scrollToCenter) {
         isProgrammaticScroll = true;
-        const targetEl = els.messagesList.querySelector(`[data-slot="${clampedCenter}"]`);
-        if (targetEl) {
-          targetEl.scrollIntoView({ block: 'start' });
-        } else {
-          els.chatScroller.scrollTop = clampedCenter * ESTIMATED_HEIGHT;
+        els.topSpacer.style.height = `${topHeight}px`;
+        els.bottomSpacer.style.height = `${bottomHeight}px`;
+        els.messagesList.innerHTML = htmlString;
+
+        attachSpoilerListeners(els.messagesList);
+        recordMeasuredHeights();
+
+        if (forceJump) {
+          const targetEl = els.messagesList.querySelector(`[data-slot="${clampedCenter}"]`);
+          if (targetEl) {
+            targetEl.scrollIntoView({ block: 'start' });
+          } else {
+            els.chatScroller.scrollTop = computeOffsetBeforeSlot(clampedCenter);
+          }
+          updateBookmarkIndicator(items.find(i => i.slot === clampedCenter)?.data?.id ?? clampedCenter);
+        } else if (anchor) {
+          // Удерживаем якорное сообщение ровно на той же позиции на экране — никакой цепной прокрутки!
+          const anchorEl = els.messagesList.querySelector(`[data-slot="${anchor.slot}"]`);
+          if (anchorEl) {
+            const scrollerTop = els.chatScroller.getBoundingClientRect().top;
+            const currentOffset = anchorEl.getBoundingClientRect().top - scrollerTop;
+            const delta = currentOffset - anchor.offsetFromTop;
+            if (Math.abs(delta) > 1) {
+              els.chatScroller.scrollTop += delta;
+            }
+          }
         }
-        updateBookmarkIndicator(items.find(i => i.slot === clampedCenter)?.data?.id ?? clampedCenter);
-        setTimeout(() => { isProgrammaticScroll = false; }, 120);
+
+        if (autoTranslateEnabled) {
+          queueVisibleMessagesForAutoTranslate();
+        }
+      } finally {
+        setTimeout(() => {
+          isProgrammaticScroll = false;
+        }, 40);
+        isRenderingWindow = false;
+
+        if (pendingCenterSlot) {
+          const next = pendingCenterSlot;
+          pendingCenterSlot = null;
+          renderWindowAround(next.centerSlot, next.forceJump);
+        }
       }
     }
 
@@ -1229,36 +1371,48 @@
       });
     }
 
-    // Обработчик скролла + автосохранение последнего прочитанного сообщения
+    // Обработчик скролла — ориентируется по реально видимым DOM-карточкам, а не по грубому делению scrollTop
     els.chatScroller.addEventListener('scroll', () => {
-      if (isProgrammaticScroll || getTotalCount() === 0) return;
+      if (isProgrammaticScroll || isRenderingWindow || getTotalCount() === 0) return;
 
-      const scrollTop = els.chatScroller.scrollTop;
-      const approxSlot = Math.floor(scrollTop / ESTIMATED_HEIGHT);
+      const anchor = captureScrollAnchor();
+      let currentSlot = anchor ? anchor.slot : Math.floor(els.chatScroller.scrollTop / DEFAULT_HEIGHT);
 
-      if (approxSlot < renderedRange.start + 6 || approxSlot > renderedRange.end - 6) {
-        renderWindowAround(approxSlot, false);
+      // Если пользователь прокрутил слишком быстро за пределы буфера (например, ползунком скроллбара)
+      const scrollerRect = els.chatScroller.getBoundingClientRect();
+      const listRect = els.messagesList.getBoundingClientRect();
+      if (listRect.bottom < scrollerRect.top || listRect.top > scrollerRect.bottom) {
+        const totalScrollable = Math.max(1, els.chatScroller.scrollHeight - els.chatScroller.clientHeight);
+        const ratio = Math.max(0, Math.min(1, els.chatScroller.scrollTop / totalScrollable));
+        currentSlot = Math.floor(ratio * (getTotalCount() - 1));
+        renderWindowAround(currentSlot, false);
+        return;
       }
 
+      if (
+        (currentSlot < renderedRange.start + BUFFER_THRESHOLD && renderedRange.start > 0) ||
+        (currentSlot > renderedRange.end - BUFFER_THRESHOLD && renderedRange.end < getTotalCount() - 1)
+      ) {
+        renderWindowAround(currentSlot, false);
+      }
+
+      // Автосохранение закладки
       clearTimeout(saveBookmarkTimer);
       saveBookmarkTimer = setTimeout(() => {
-        const containerTop = els.chatScroller.getBoundingClientRect().top;
-        const msgNodes = els.messagesList.querySelectorAll('.msg-item');
-        let visibleId = null;
-
-        for (const node of msgNodes) {
-          const rect = node.getBoundingClientRect();
-          if (rect.bottom > containerTop + 20) {
-            visibleId = parseInt(node.getAttribute('data-id'), 10);
-            break;
-          }
-        }
-
-        if (visibleId !== null && !isNaN(visibleId)) {
-          setMeta('lastReadIndex', visibleId);
-          updateBookmarkIndicator(visibleId);
+        const currentAnchor = captureScrollAnchor();
+        if (currentAnchor && !isNaN(currentAnchor.id)) {
+          setMeta('lastReadIndex', currentAnchor.id);
+          updateBookmarkIndicator(currentAnchor.id);
         }
       }, 200);
+
+      // Автоперевод видимых сообщений после остановки скролла
+      if (autoTranslateEnabled) {
+        clearTimeout(autoTranslateTimer);
+        autoTranslateTimer = setTimeout(() => {
+          queueVisibleMessagesForAutoTranslate();
+        }, 260);
+      }
     }, { passive: true });
 
     function updateBookmarkIndicator(msgId) {
@@ -1266,12 +1420,112 @@
     }
 
     /* =========================================================================
-       6. Перевод сообщения ВМЕСТО оригинала и возврат обратно по клику
+       6. Ручной и Автоматический перевод сообщений (EN -> RU)
        ========================================================================= */
-    window.translateMessage = async function(msgId, btnEl) {
-      const contentEl = document.getElementById(`content-${msgId}`);
-      if (!contentEl) return;
+    // Проверяем, есть ли в тексте латинские буквы, чтобы зря не переводить числа/смайлы/русский текст
+    function hasEnglishLetters(text) {
+      return /[a-zA-Z]{2,}/.test(text || '');
+    }
 
+    async function fetchGoogleTranslation(text) {
+      const apiUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ru&dt=t&q=${encodeURIComponent(text)}`;
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error('API Error');
+      const data = await res.json();
+      return data[0].map(part => part[0]).join('');
+    }
+
+    function applyTranslationToDOM(msgId) {
+      const contentEl = document.getElementById(`content-${msgId}`);
+      const btnEl = document.getElementById(`tbtn-${msgId}`);
+      const msgData = messageCache.get(msgId);
+      if (!contentEl || !msgData) return;
+
+      // Сохраняем якорь перед изменением высоты сообщения от перевода
+      const anchor = captureScrollAnchor();
+
+      if (activeTranslations.has(msgId) && translatedCache.has(msgId)) {
+        if (btnEl) btnEl.classList.add('active');
+        contentEl.classList.add('translated-mode');
+        contentEl.innerHTML = buildMessageBodyContent(msgData);
+      } else {
+        if (btnEl) btnEl.classList.remove('active');
+        contentEl.classList.remove('translated-mode');
+        contentEl.innerHTML = msgData.html;
+        attachSpoilerListeners(contentEl);
+      }
+
+      recordMeasuredHeights();
+
+      // Компенсируем сдвиг высоты, если сообщение было выше видимой области
+      if (anchor) {
+        const anchorEl = els.messagesList.querySelector(`[data-slot="${anchor.slot}"]`);
+        if (anchorEl) {
+          const scrollerTop = els.chatScroller.getBoundingClientRect().top;
+          const delta = (anchorEl.getBoundingClientRect().top - scrollerTop) - anchor.offsetFromTop;
+          if (Math.abs(delta) > 1) {
+            isProgrammaticScroll = true;
+            els.chatScroller.scrollTop += delta;
+            setTimeout(() => { isProgrammaticScroll = false; }, 20);
+          }
+        }
+      }
+    }
+
+    // Очередь автоперевода видимых на экране сообщений
+    let isAutoTranslatingQueue = false;
+    async function queueVisibleMessagesForAutoTranslate() {
+      if (!autoTranslateEnabled || isAutoTranslatingQueue) return;
+      isAutoTranslatingQueue = true;
+
+      try {
+        const scrollerRect = els.chatScroller.getBoundingClientRect();
+        const nodes = els.messagesList.querySelectorAll('.msg-item');
+        const visibleIds = [];
+
+        for (const node of nodes) {
+          const rect = node.getBoundingClientRect();
+          // Берем сообщения на экране + небольшой запас снизу
+          if (rect.bottom >= scrollerRect.top - 80 && rect.top <= scrollerRect.bottom + 240) {
+            const id = parseInt(node.getAttribute('data-id'), 10);
+            if (!isNaN(id) && !manualUntranslated.has(id)) {
+              visibleIds.push(id);
+            }
+          }
+        }
+
+        for (const msgId of visibleIds) {
+          if (!autoTranslateEnabled) break;
+
+          const msgData = messageCache.get(msgId);
+          if (!msgData || !hasEnglishLetters(msgData.plain)) continue;
+
+          if (translatedCache.has(msgId)) {
+            if (!activeTranslations.has(msgId)) {
+              activeTranslations.add(msgId);
+              applyTranslationToDOM(msgId);
+            }
+            continue;
+          }
+
+          try {
+            const translated = await fetchGoogleTranslation(msgData.plain.trim());
+            translatedCache.set(msgId, translated);
+            activeTranslations.add(msgId);
+            applyTranslationToDOM(msgId);
+            // Небольшая пауза между запросами, чтобы Google не заблокировал за спам
+            await new Promise(r => setTimeout(r, 110));
+          } catch (e) {
+            break;
+          }
+        }
+      } finally {
+        isAutoTranslatingQueue = false;
+      }
+    }
+
+    // Ручное нажатие на круглую кнопку переводчика возле сообщения
+    window.translateMessage = async function(msgId, btnEl) {
       let msgData = messageCache.get(msgId);
       if (!msgData) {
         const arr = await getMessagesByIds([msgId]);
@@ -1280,22 +1534,20 @@
       }
       if (!msgData) return;
 
-      // Если сейчас показан перевод — возвращаем оригинальное английское сообщение
+      // Если перевод уже включен — возвращаем английский оригинал
       if (activeTranslations.has(msgId)) {
         activeTranslations.delete(msgId);
-        btnEl.classList.remove('active');
-        contentEl.classList.remove('translated-mode');
-        contentEl.innerHTML = msgData.html;
-        attachSpoilerListeners(contentEl);
+        manualUntranslated.add(msgId);
+        applyTranslationToDOM(msgId);
         return;
       }
 
-      // Если перевод уже есть в кэше — сразу подменяем текст без повторного запроса
+      manualUntranslated.delete(msgId);
+
+      // Если перевод уже есть в кэше — мгновенно показываем
       if (translatedCache.has(msgId)) {
         activeTranslations.add(msgId);
-        btnEl.classList.add('active');
-        contentEl.classList.add('translated-mode');
-        contentEl.innerHTML = buildMessageBodyContent(msgData);
+        applyTranslationToDOM(msgId);
         return;
       }
 
@@ -1306,18 +1558,10 @@
       btnEl.style.opacity = '0.5';
 
       try {
-        const apiUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ru&dt=t&q=${encodeURIComponent(textToTranslate)}`;
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error('API Error');
-        const data = await res.json();
-
-        const translatedText = data[0].map(part => part[0]).join('');
+        const translatedText = await fetchGoogleTranslation(textToTranslate);
         translatedCache.set(msgId, translatedText);
         activeTranslations.add(msgId);
-
-        btnEl.classList.add('active');
-        contentEl.classList.add('translated-mode');
-        contentEl.innerHTML = buildMessageBodyContent(msgData);
+        applyTranslationToDOM(msgId);
       } catch (err) {
         const googleWebUrl = `https://translate.google.com/?sl=en&tl=ru&text=${encodeURIComponent(textToTranslate)}&op=translate`;
         window.open(googleWebUrl, '_blank', 'noopener');
@@ -1339,6 +1583,7 @@
     });
 
     async function runFullTextSearch(query) {
+      slotHeights.clear();
       if (!query) {
         activeIndices = null;
         updateStatsHeader();
@@ -1421,7 +1666,6 @@
       return String(str).replace(/"/g, '&quot;');
     }
 
-    // При старте проверяем, есть ли уже сохраненный чат в IndexedDB
     (async function boot() {
       await initDB();
       const savedTotal = await getMeta('totalMessages');
