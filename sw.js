@@ -1,4 +1,4 @@
-const CACHE_NAME = 'discord-reader-v1';
+const CACHE_NAME = 'discord-reader-v2';
 const ASSETS = [
   './',
   './index.html',
